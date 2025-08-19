@@ -13,6 +13,7 @@ export interface Stock {
     target_to: number
     crated_at: number
     updated_at: number
+    record_time: string // record_time: "2025-08-07T19:30:09.885518-05:00"
 }
 
 export interface PageMeta {
@@ -27,6 +28,11 @@ export interface StockFilters {
     ticker?: string
     company?: string
     brokerage?: string
+}
+
+export interface StocksOrdering {
+    orderBy: string
+    orderDirection: string
 }
 
 export const useStocksStore = defineStore('stocks', () => {
@@ -45,6 +51,9 @@ export const useStocksStore = defineStore('stocks', () => {
 
     // Estados para los filtros
     const filters = ref<StockFilters>({})
+
+    const orderBy = ref<string>('created_at')
+    const orderDirection = ref<string>('0')
 
     const currentList = computed<Stock[]>(() => {
         const page = pageIndex.value[currentPage.value] ?? []
@@ -70,13 +79,15 @@ export const useStocksStore = defineStore('stocks', () => {
         loadedPages.value.add(page)
     }
 
-    async function fetchPageFromApi(page: number, currentFilters?: StockFilters) {
+    async function fetchPageFromApi(page: number, currentFilters?: StockFilters, currentOrdering?: StocksOrdering) {
         // Construir la URL base usando variable de entorno
         const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/v1/api'
         let url = `${apiBaseUrl}/stocks/list?page=${page}&pageSize=${pageSize.value}`
         
         // Agregar filtros como query parameters solo si tienen valores
         const filtersToUse = currentFilters || filters.value
+        const orderByToUse = currentOrdering?.orderBy || orderBy.value
+        const orderDirectionToUse = currentOrdering?.orderDirection || orderDirection.value
         
         if (filtersToUse.ticker && filtersToUse.ticker.trim()) {
             url += `&ticker=${encodeURIComponent(filtersToUse.ticker.trim())}`
@@ -88,6 +99,10 @@ export const useStocksStore = defineStore('stocks', () => {
         
         if (filtersToUse.brokerage && filtersToUse.brokerage.trim()) {
             url += `&brokerage=${encodeURIComponent(filtersToUse.brokerage.trim())}`
+        }
+
+        if (orderByToUse && orderDirectionToUse) {
+            url += `&order_by=${orderByToUse}&asc=${orderDirectionToUse}`
         }
 
         const response = await fetch(url)
@@ -183,6 +198,18 @@ export const useStocksStore = defineStore('stocks', () => {
         await goToPage(1)
     }
 
+    function updateOrdering(newOrdering: StocksOrdering) {
+        orderBy.value = newOrdering.orderBy
+        orderDirection.value = newOrdering.orderDirection
+    }
+
+    async function applyOrdering(newOrdering: StocksOrdering) {
+        updateOrdering(newOrdering)
+        clearAll()
+        await goToPage(1)
+    }
+
+
     // Función para limpiar filtros
     async function clearFilters() {
         filters.value = {}
@@ -213,6 +240,8 @@ export const useStocksStore = defineStore('stocks', () => {
         isLoading,
         error,
         filters,
+        orderBy,
+        orderDirection,
         currentList,
         hasNextPage,
         hasPreviousPage,
@@ -225,6 +254,8 @@ export const useStocksStore = defineStore('stocks', () => {
         applyFilters,
         clearFilters,
         clearAll,
+        updateOrdering,
+        applyOrdering,
     }  
     
 })

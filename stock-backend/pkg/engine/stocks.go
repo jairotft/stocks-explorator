@@ -4,23 +4,31 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"slices"
 	"strconv"
 	"time"
 )
 
-func GetStocks(params map[string]string) (PaginatedStocksResponse, error) {
-
-	db, err := connectToDB()
-	if err != nil {
-		log.Fatalf("cannot connect: %v", err)
+func getOrderByClause(params map[string]string) string {
+	orderClause := " ORDER BY created_at DESC"
+	if params["order_by"] != "" {
+		orderbyName := params["order_by"]
+		// Solo si orderbyName esta en la lista de campos permitidos de "record_time", "created_at", "ticker", "company", "brokerage", "action", "rating_from", "rating_to", "target_from", "target_to"
+		allowedFields := []string{"record_time", "created_at", "ticker", "company", "brokerage", "action", "rating_from", "rating_to", "target_from", "target_to"}
+		if !slices.Contains(allowedFields, orderbyName) {
+			return orderClause
+		}
+		ascOrDesc := params["asc"]
+		if ascOrDesc == "1" {
+			orderClause = " ORDER BY " + orderbyName + " ASC"
+		} else {
+			orderClause = " ORDER BY " + orderbyName + " DESC"
+		}
 	}
+	return orderClause
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := db.Ping(ctx); err != nil {
-		log.Fatalf("cannot connect: %v", err)
-	}
+func getWhereClause(params map[string]string) string {
 
 	// Construir WHERE clause
 	whereClause := " WHERE 1=1"
@@ -44,6 +52,27 @@ func GetStocks(params map[string]string) (PaginatedStocksResponse, error) {
 	if params["rating_to"] != "" {
 		whereClause += fmt.Sprintf(" AND rating_to = '%s'", params["rating_to"])
 	}
+
+	return whereClause
+}
+
+func GetStocks(params map[string]string) (PaginatedStocksResponse, error) {
+
+	db, err := connectToDB()
+	if err != nil {
+		log.Fatalf("cannot connect: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := db.Ping(ctx); err != nil {
+		log.Fatalf("cannot connect: %v", err)
+	}
+
+	whereClause := getWhereClause(params)
+
+	orderClause := getOrderByClause(params)
 
 	// Paginación
 	var page int
@@ -70,6 +99,7 @@ func GetStocks(params map[string]string) (PaginatedStocksResponse, error) {
 	// Consulta principal con paginación
 	query := "SELECT code, ticker, company, brokerage, action, rating_from, rating_to, target_from, target_to, record_time, created_at, updated_at FROM stocks"
 	query += whereClause
+	query += orderClause
 	query += fmt.Sprintf(" LIMIT %d OFFSET %d", perPage, (page-1)*perPage)
 
 	fmt.Println(query)

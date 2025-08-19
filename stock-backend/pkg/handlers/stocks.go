@@ -18,6 +18,8 @@ func GetStocksHandler(w http.ResponseWriter, r *http.Request) {
 	ratingTo := r.URL.Query().Get("rating_to")
 	page := r.URL.Query().Get("page")
 	ticker := r.URL.Query().Get("ticker")
+	order_by := r.URL.Query().Get("order_by")
+	asc := r.URL.Query().Get("asc")
 	mapParams := map[string]string{
 		"ticker":      ticker,
 		"brokerage":   brokerage,
@@ -25,6 +27,8 @@ func GetStocksHandler(w http.ResponseWriter, r *http.Request) {
 		"rating_from": ratingFrom,
 		"rating_to":   ratingTo,
 		"page":        page,
+		"order_by":    order_by,
+		"asc":         asc,
 	}
 	stocksResponse, err := engine.GetStocks(mapParams)
 	if err != nil {

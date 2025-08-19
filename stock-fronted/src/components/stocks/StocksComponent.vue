@@ -11,6 +11,10 @@ const filterTicker = ref('')
 const filterCompany = ref('')
 const filterBrokerage = ref('')
 
+// Estados para el ordenamiento
+const currentSortField = ref<string>('')
+const currentSortDirection = ref<string>('asc')
+
 // Función helper para extraer valores de objetos de validación
 const extractValue = (value: any): string => {
   if (typeof value === 'object' && value !== null && 'String' in value) {
@@ -32,6 +36,32 @@ const formatCurrency = (value: number | string | null | undefined): string => {
   }
   
   return `$${numValue.toFixed(2)}`
+}
+
+/*
+  * Función para formatear fechas
+  * De un formato "2025-08-07T19:30:09.885518-05:00"
+  * Convertimos a una fecha legible dd/mm/yyyy hh:mm:ss
+  */
+const formatDate = (dateStr: string): string => {
+  const date = new Date(dateStr)
+  
+  if (isNaN(date.getTime())) {
+    return 'N/A'
+  }
+  
+  const options: Intl.DateTimeFormatOptions = {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    timeZoneName: 'short'
+  }
+  
+  return date.toLocaleString('es-ES', options)
+  
 }
 
 // Función para aplicar filtros con debounce
@@ -66,6 +96,34 @@ const clearFilters = async () => {
 
 const goToRecommendationsPage = () => {
   router.push('/recommendations')
+}
+
+// Función para manejar el ordenamiento
+const handleSort = async (field: string) => {
+  let direction = '0'
+  
+  // Si ya estamos ordenando por este campo, cambiar la dirección
+  if (currentSortField.value === field) {
+    direction = currentSortDirection.value === '0' ? '1' : '0'
+  }
+  
+  currentSortField.value = field
+  currentSortDirection.value = direction
+
+  // Aplicar ordenamiento usando el store
+  const orderDirection = direction === '0' ? '1' : '0'
+  await stocks.applyOrdering({
+    orderBy: field,
+    orderDirection: orderDirection
+  })
+}
+
+// Función para obtener el icono de ordenamiento
+const getSortIcon = (field: string) => {
+  if (currentSortField.value !== field) {
+    return 'sort'
+  }
+  return currentSortDirection.value === 'asc' ? 'sort-up' : 'sort-down'
 }
 
 // Inicializar filtros desde el store si existen
@@ -188,11 +246,67 @@ onMounted(() => {
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Ticker
+              <th 
+                @click="handleSort('ticker')"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors duration-200"
+              >
+                <div class="flex items-center space-x-1">
+                  <span>Ticker</span>
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path 
+                      v-if="getSortIcon('ticker') === 'sort'"
+                      stroke-linecap="round" 
+                      stroke-linejoin="round" 
+                      stroke-width="2" 
+                      d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
+                    />
+                    <path 
+                      v-else-if="getSortIcon('ticker') === 'sort-up'"
+                      stroke-linecap="round" 
+                      stroke-linejoin="round" 
+                      stroke-width="2" 
+                      d="M5 15l7-7 7 7"
+                    />
+                    <path 
+                      v-else
+                      stroke-linecap="round" 
+                      stroke-linejoin="round" 
+                      stroke-width="2" 
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </div>
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Company
+              <th 
+                @click="handleSort('company')"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors duration-200"
+              >
+                <div class="flex items-center space-x-1">
+                  <span>Company</span>
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path 
+                      v-if="getSortIcon('company') === 'sort'"
+                      stroke-linecap="round" 
+                      stroke-linejoin="round" 
+                      stroke-width="2" 
+                      d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
+                    />
+                    <path 
+                      v-else-if="getSortIcon('company') === 'sort-up'"
+                      stroke-linecap="round" 
+                      stroke-linejoin="round" 
+                      stroke-width="2" 
+                      d="M5 15l7-7 7 7"
+                    />
+                    <path 
+                      v-else
+                      stroke-linecap="round" 
+                      stroke-linejoin="round" 
+                      stroke-width="2" 
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </div>
               </th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Brokerage
@@ -211,6 +325,37 @@ onMounted(() => {
               </th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Target To
+              </th>
+              <th 
+                @click="handleSort('record_time')"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors duration-200"
+              >
+                <div class="flex items-center space-x-1">
+                  <span>Record Time</span>
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path 
+                      v-if="getSortIcon('record_time') === 'sort'"
+                      stroke-linecap="round" 
+                      stroke-linejoin="round" 
+                      stroke-width="2" 
+                      d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
+                    />
+                    <path 
+                      v-else-if="getSortIcon('record_time') === 'sort-up'"
+                      stroke-linecap="round" 
+                      stroke-linejoin="round" 
+                      stroke-width="2" 
+                      d="M5 15l7-7 7 7"
+                    />
+                    <path 
+                      v-else
+                      stroke-linecap="round" 
+                      stroke-linejoin="round" 
+                      stroke-width="2" 
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </div>
               </th>
             </tr>
           </thead>
@@ -245,6 +390,9 @@ onMounted(() => {
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
                 {{ formatCurrency(item.target_to) }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {{ formatDate(item.record_time) }}
               </td>
             </tr>
           </tbody>
