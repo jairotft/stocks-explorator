@@ -12,6 +12,7 @@ import (
 	"stock/getter/pkg/engine"
 
 	"github.com/joho/godotenv"
+	"github.com/urfave/cli"
 )
 
 /*
@@ -83,27 +84,59 @@ func main() {
 
 	godotenv.Overload()
 
+	app := cli.NewApp()
+	app.Name = "Stocks Getter"
+	app.Usage = "Obtiene las acciones de la API"
+
 	startTime := time.Now()
 	totalItems := 0
 	counter := 0
-	var nextPage string = ""
-	for {
-		stockResponse, err := getStock(nextPage)
-		counter++
-		if err != nil {
-			log.Fatal(err)
-		}
-		// fmt.Println(stockResponse)
-		nextPage = stockResponse.NextPage
-		totalItems += len(stockResponse.Items)
-		err = engine.InsertStocks(stockResponse)
-		if err != nil {
-			log.Fatal(err)
-		}
-		if nextPage == "" {
-			break
-		}
+
+	app.Commands = []cli.Command{
+
+		{
+			Name:    "download",
+			Aliases: []string{"n"},
+			Usage:   "Obtiene las acciones de la API",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "next_page",
+					Value: "",
+					Usage: "Token de la siguiente página (opcional)",
+				},
+			},
+			Action: func(c *cli.Context) error {
+
+				var nextPage string = c.String("next_page")
+				fmt.Println("nextPage", nextPage)
+				for {
+					stockResponse, err := getStock(nextPage)
+					counter++
+					if err != nil {
+						log.Fatal(err)
+					}
+					// fmt.Println(stockResponse)
+					nextPage = stockResponse.NextPage
+					totalItems += len(stockResponse.Items)
+					err = engine.InsertStocks(stockResponse)
+					if err != nil {
+						log.Fatal(err)
+					}
+					break
+					// if nextPage == "" {
+					// 	break
+					// }
+				}
+				return nil
+			},
+		},
 	}
+
+	err := app.Run(os.Args)
+	if err != nil {
+		panic(err)
+	}
+
 	fmt.Println("Total de llamadas ejecutadas:", counter)
 	fmt.Println("Total de items insertados:", totalItems)
 	fmt.Println("Tiempo total de ejecución:", time.Since(startTime))
